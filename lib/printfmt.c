@@ -28,6 +28,17 @@ static const char * const error_string[MAXERROR] =
 	[E_FAULT]	= "segmentation fault",
 };
 
+static void
+rprintnum(void (*putch)(int, void*), void *putdat,
+	 unsigned long long num, unsigned base, int* count)
+{
+	if (num >= base) {
+		rprintnum(putch, putdat, num / base, base, count);
+		*count++;
+	}
+	putch("0123456789abcdef"[num % base], putdat);
+}
+
 /*
  * Print a number (base <= 16) in reverse order,
  * using specified putch function and associated pointer putdat.
@@ -40,6 +51,15 @@ printnum(void (*putch)(int, void*), void *putdat,
 	// space on the right side if neccesary.
 	// you can add helper function if needed.
 	// your code here:
+	int count = 1;
+	if (padc == '-') {
+		rprintnum(putch, putdat, num, base, &count);
+		width -= count;
+		while(width-- > 0){
+			putch(' ', putdat);
+		}
+		return;
+	}
 	
 	// first recursively print all preceding (more significant) digits
 	if (num >= base) {
@@ -90,7 +110,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 	register const char *p;
 	register int ch, err;
 	unsigned long long num;
-	int base, lflag, width, precision, altflag;
+	int base, lflag, width, precision, altflag, signflag;
 	char padc;
 
 	while (1) {
@@ -106,8 +126,13 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		precision = -1;
 		lflag = 0;
 		altflag = 0;
+		signflag = 0;
 	reswitch:
 		switch (ch = *(unsigned char *) fmt++) {
+
+		case '+':
+			signflag = 1;
+			goto reswitch;
 
 		// flag to pad on the right
 		case '-':
@@ -198,12 +223,15 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			if ((long long) num < 0) {
 				putch('-', putdat);
 				num = -(long long) num;
+			} else if (signflag) {
+				putch('+', putdat);
 			}
 			base = 10;
 			goto number;
 
 		// unsigned decimal
 		case 'u':
+			if (signflag) putch('+', putdat);
 			num = getuint(&ap, lflag);
 			base = 10;
 			goto number;
@@ -211,13 +239,15 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		// (unsigned) octal
 		case 'o':
 			// Replace this with your code.
-			putch('X', putdat);
-			putch('X', putdat);
-			putch('X', putdat);
-			break;
+			if (signflag) putch('+', putdat);
+			putch('0', putdat);
+			num = getuint(&ap, lflag);
+			base = 8;
+			goto number;
 
 		// pointer
 		case 'p':
+			if (signflag) putch('+', putdat);
 			putch('0', putdat);
 			putch('x', putdat);
 			num = (unsigned long long)
@@ -227,6 +257,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 
 		// (unsigned) hexadecimal
 		case 'x':
+			if (signflag) putch('+', putdat);
 			num = getuint(&ap, lflag);
 			base = 16;
 		number:
@@ -253,8 +284,17 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 				  const char *null_error = "\nerror! writing through NULL pointer! (%n argument)\n";
 				  const char *overflow_error = "\nwarning! The value %n argument pointed to has been overflowed!\n";
 
+				  signed char *n;
 				  // Your code here
-
+				  if ((n = va_arg(ap, signed char *)) == NULL) {
+					printfmt(putch, putdat, "%s", null_error);
+					break;
+				  }
+				  char cnt = *(char *)putdat;
+				  if (cnt & 0x80) {
+					  printfmt(putch, putdat, "%s", overflow_error);
+				  }
+				  *n = cnt;
 				  break;
 			  }
 

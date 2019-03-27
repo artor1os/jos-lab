@@ -24,6 +24,8 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display backtrace", mon_backtrace},
+	{ "time", "timer", mon_time}
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -85,11 +87,23 @@ start_overflow(void)
     char str[256] = {};
     int nstr = 0;
     char *pret_addr;
+	uint32_t ra;
+	int i;
 
 	// Your code here.
-    
-
-
+    pret_addr = (char *)read_pretaddr();
+	ra = *(uint32_t *)pret_addr;
+	memset(str, '*', 256);
+	
+	uint32_t replacement = (uint32_t)do_overflow;
+	for (i = 0; i < 4; i++) {
+		str[(replacement >> (8 * i)) & 0xff] = '\0';
+		cprintf("%s%n", str, pret_addr + i);
+		str[(replacement >> (8 * i)) & 0xff] = '*';
+		str[(ra >> (8 * i)) & 0xff] = '\0';
+		cprintf("%s%n", str, pret_addr + 4 + i);
+		str[(ra >> (8 * i)) & 0xff] = '*';
+	}
 }
 
 void
@@ -102,12 +116,51 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	uint32_t *ebp = (uint32_t *)read_ebp();
+	struct Eipdebuginfo info;
+	uint32_t eip;
+	int i;
+	cprintf("Stack backtrace:\n");
+	while(ebp){
+		eip = *(ebp + 1);
+		cprintf("eip %08x  ebp %08x  args %08x %08x %08x %08x %08x ", eip, ebp, *(ebp + 2), *(ebp + 3), *(ebp + 4), *(ebp + 5), *(ebp + 6));
+		ebp = (uint32_t *)*ebp;
+		
+		debuginfo_eip(eip, &info);
+		cprintf("%s:%d ", info.eip_file, info.eip_line);
+		for (i = 0; i < info.eip_fn_namelen; i++) {
+			cputchar(info.eip_fn_name[i]);
+		}
+		cprintf("+%d\n", eip - info.eip_fn_addr);
+	}
+	
+
 	overflow_me();
     	cprintf("Backtrace success\n");
 	return 0;
 }
 
+int
+mon_time(int argc, char **argv, struct Trapframe *tf)
+{
+	uint64_t start, end;
+	int i;
+	struct Command *command = NULL;
+	
+	if (argc <= 1) return -1;
 
+	for (i = 0; i < ARRAY_SIZE(commands); i++) {
+		if (strcmp(argv[1], commands[i].name) == 0)
+			command = &commands[i];
+	}
+
+	start = read_tsc();
+	if (command != NULL) 
+		command->func(--argc, ++argv, tf);
+	end = read_tsc();
+	cprintf("kerninfo cycles: %ld\n", end - start);
+	return 0;
+}
 
 /***** Kernel monitor command interpreter *****/
 
