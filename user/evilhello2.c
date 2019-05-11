@@ -31,18 +31,20 @@ void evil()
 	outb(0x3f8, '\n');
 }
 
-void call_fun_ptr()
-{
-    evil();  
-    *entry = old;  
-    asm volatile("popl %ebp");
-    asm volatile("lret");   
-}
-
 static void
 sgdt(struct Pseudodesc* gdtd)
 {
 	__asm __volatile("sgdt %0" :  "=m" (*gdtd));
+}
+
+void (*fp)(void);
+
+void wrapper_fun_ptr()
+{
+    fp();
+	*entry = old;
+    asm volatile("popl %ebp");
+    asm volatile("lret"); 
 }
 
 // Invoke a given function pointer with ring0 privilege, then return to ring3
@@ -64,7 +66,7 @@ void ring0_call(void (*fun_ptr)(void)) {
     struct Pseudodesc r_gdt; 
     sgdt(&r_gdt);
 
-    int t = sys_map_kernel_page((void* )r_gdt.pd_base, (void* )vaddr);
+    int t = sys_map_kernel_page((void* )r_gdt.pd_base, (void* )(vaddr));
     if (t < 0) {
         cprintf("ring0_call: sys_map_kernel_page failed, %e\n", t);
     }
@@ -77,7 +79,8 @@ void ring0_call(void (*fun_ptr)(void)) {
     entry = gdt + index; 
     old= *entry; 
 
-    SETCALLGATE(*((struct Gatedesc*)entry), GD_KT, call_fun_ptr, 3);
+    fp = fun_ptr;
+    SETCALLGATE(*((struct Gatedesc*)entry), GD_KT, wrapper_fun_ptr, 3);
     asm volatile("lcall $0x20, $0");
 }
 
