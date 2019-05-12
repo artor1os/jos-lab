@@ -127,6 +127,7 @@ env_init(void)
 		p = envs + i;
 		p->env_id = 0;
 		p->env_status = ENV_FREE;
+		p->env_link = NULL;
 		if (tail == NULL) {
 			tail = env_free_list = p;
 		} else {
@@ -557,6 +558,8 @@ env_run(struct Env *e)
 
 	// LAB 3: Your code here.
 	//panic("env_run not yet implemented");
+	if (e && e == curenv)
+		goto same;
 	if (curenv && curenv->env_status == ENV_RUNNING)
 		curenv->env_status = ENV_RUNNABLE;
 	
@@ -564,7 +567,8 @@ env_run(struct Env *e)
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs++;
 	lcr3(PADDR(curenv->env_pgdir));
-
+same:
+	unlock_kernel();
 	env_pop_tf(&curenv->env_tf);
 
 }
