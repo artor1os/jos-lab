@@ -75,13 +75,13 @@ duppage(envid_t envid, unsigned pn)
 		goto ret;
 	if (!(uvpt[PGNUM(addr)] & PTE_P))
 		goto ret;
-	if (uvpt[PGNUM(addr)] & (PTE_W | PTE_COW)) {
+	if ((uvpt[PGNUM(addr)] & (PTE_W | PTE_COW)) && !(uvpt[PGNUM(addr)] & PTE_SHARE)) {
 		if ((r = sys_page_map(0, addr, envid, addr, PTE_U | PTE_P | PTE_COW)) < 0)
 			panic("duppage: %e", r);
 		if ((r = sys_page_map(0, addr, 0, addr, PTE_U | PTE_P | PTE_COW)) < 0)
 			panic("duppage: %e", r);
 	} else {
-		if ((r = sys_page_map(0, addr, envid, addr, PTE_U | PTE_P)) < 0)
+		if ((r = sys_page_map(0, addr, envid, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
 			panic("duppage: %e", r);
 	}
 
