@@ -425,6 +425,26 @@ sys_sbrk(uint32_t inc)
     return curenv->env_break;
 }
 
+static int
+sys_env_switch(envid_t envid)
+{
+	int r;
+	struct Env *e;
+	pde_t *oldpgdir;
+
+	if ((r = envid2env(envid, &e, 0)) < 0)
+		return r;
+	
+	curenv->env_tf = e->env_tf;
+	oldpgdir = curenv->env_pgdir;
+	curenv->env_pgdir = e->env_pgdir;
+	e->env_pgdir = oldpgdir;
+	env_destroy(e);
+	lcr3(PADDR(curenv->env_pgdir));
+	env_run(curenv);
+	return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -470,6 +490,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_ipc_recv((void *)a1);
 		case SYS_env_set_trapframe:
 			return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
+		case SYS_env_switch:
+			return sys_env_switch((envid_t)a1);
 		default:
 			return -E_INVAL;
 	}

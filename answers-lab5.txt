@@ -1,0 +1,7 @@
+1. 不需要，因为eflags是存在trapframe里的，切换环境时自动保存和还原，且这些代码不会更改eflags的IOPL位。
+
+challenge: 实现exec
+exec和spawn十分相似，不同的是exec需要摧毁当前环境，并切换到新fork出来的环境，
+这一步需要内核支持，于是添加系统调用sys_env_switch(envid_t envid)，其可以摧毁当前环境并
+切换到指定环境。exec函数的代码和spawn函数的代码也基本一样，不同的是exec不需要复制共享页，并且
+把spawn函数最后的sys_env_set_status调用变为sys_env_switch调用。
