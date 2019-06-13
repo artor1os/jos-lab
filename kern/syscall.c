@@ -452,7 +452,8 @@ static int
 sys_time_msec(void)
 {
 	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+	// panic("sys_time_msec not implemented");
+	return time_msec();
 }
 
 int
@@ -462,7 +463,31 @@ sys_net_send(const void *buf, uint32_t len)
 	// Check the user permission to [buf, buf + len]
 	// Call e1000_tx to send the packet
 	// Hint: e1000_tx only accept kernel virtual address
-	return -1;
+	struct PageInfo *pp;
+	int r;
+	uint32_t off, s;
+	void *src;
+
+	user_mem_assert(curenv, buf, len, 0);
+
+	off = (uint32_t)buf % PGSIZE;
+	s = PGSIZE - off;
+	if ((pp = page_lookup(curenv->env_pgdir, (void *)buf, NULL)) == NULL)
+		return -1;
+	if ((r = e1000_tx(page2kva(pp) + off, MIN(s, len))) < 0)
+		return r;
+	len -= MIN(s, len);
+	src = (void *)buf + s;
+	while (len > 0) {
+		if ((pp = page_lookup(curenv->env_pgdir, src, NULL)) == NULL)
+			return -1;
+		if ((r = e1000_tx(page2kva(pp), MIN(PGSIZE, len))) < 0)
+			return r;
+		src += PGSIZE;
+		len -= MIN(PGSIZE, len);
+	}
+
+	return 0;
 }
 
 int
@@ -472,7 +497,17 @@ sys_net_recv(void *buf, uint32_t len)
 	// Check the user permission to [buf, buf + len]
 	// Call e1000_rx to fill the buffer
 	// Hint: e1000_rx only accept kernel virtual address
-	return -1;
+	struct PageInfo *pp;
+	int r;
+	uint32_t off, s;
+
+	user_mem_assert(curenv, buf, len, 0);
+
+	off = (uint32_t)buf % PGSIZE;
+	s = PGSIZE - off;
+	if ((pp = page_lookup(curenv->env_pgdir, buf, NULL)) == NULL)
+		return -1;
+	return e1000_rx(page2kva(pp) + off, MIN(s, len));
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -522,6 +557,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
 		case SYS_env_switch:
 			return sys_env_switch((envid_t)a1);
+		case SYS_time_msec:
+			return sys_time_msec();
+		case SYS_net_send:
+			return sys_net_send((const void *)a1, (uint32_t)a2);
+		case SYS_net_recv:
+			return sys_net_recv((void *)a1, (uint32_t)a2);
 		default:
 			return -E_INVAL;
 	}
