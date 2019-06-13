@@ -510,6 +510,14 @@ sys_net_recv(void *buf, uint32_t len)
 	return e1000_rx(page2kva(pp) + off, MIN(s, len));
 }
 
+int
+sys_get_mac(void *mac_store)
+{
+	user_mem_assert(curenv, mac_store, 6, 0);
+	
+	return e1000_getmac(mac_store);
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -563,6 +571,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_net_send((const void *)a1, (uint32_t)a2);
 		case SYS_net_recv:
 			return sys_net_recv((void *)a1, (uint32_t)a2);
+		case SYS_get_mac:
+			return sys_get_mac((void *)a1);
 		default:
 			return -E_INVAL;
 	}

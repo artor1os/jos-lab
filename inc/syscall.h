@@ -23,6 +23,7 @@ enum {
 	SYS_net_send,
 	SYS_net_recv,
 	SYS_env_switch,
+	SYS_get_mac,
 	NSYSCALLS
 };
 

@@ -180,3 +180,9 @@ sys_net_recv(void *buf, uint32_t len)
 {
 	return (unsigned int) syscall(SYS_net_recv, 0, (uint32_t) buf, len, 0, 0, 0);
 }
+
+int
+sys_get_mac(void *mac_store)
+{
+	return syscall(SYS_get_mac, 0, (uint32_t)mac_store, 0, 0, 0, 0);
+}

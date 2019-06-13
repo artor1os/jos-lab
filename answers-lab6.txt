@@ -1,0 +1,16 @@
+1. tx ring满了直接返回-1，方便调用端重发
+2. rx ring为空直接返回-E_AGAIN，调用端可以重发也可以挂起
+3. This file came from JOS. Cheesy web page!
+4. 8小时做exercise，4小时做challenge
+
+challenge:
+从eeprom读mac地址
+手册第5章详细介绍了怎么读写eeprom，首先修改struct E1000，加入域EERD，位置为0x14
+新增接口e1000_get_mac()实现读取mac，mac在eeprom中的地址为开头的6个字节，使用手册中
+的方法一次读取2个字节，最后返回。然后新增系统调用sys_get_mac()。最后在两个使用固定mac
+的地方修改，第一个是kern/e1000.c#e1000_rx_init，使用e1000_get_mac()获取mac，第二个是
+net/lwip/jos/jif/jif.c#low_level_init，使用sys_get_mac()获取mac。
+
+测试：
+修改GNUmakefile，在网络相关选项后面加上macaddr=00:00:00:11:11:11，运行make qemu-nox可以看到
+输出的mac地址已经被改成这个值了。

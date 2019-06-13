@@ -56,6 +56,9 @@ e1000_rx_init()
 {
 	struct PageInfo *pp;
 	int i;
+	uint8_t mac[6];
+	uint32_t mac_low;
+	uint32_t mac_high;
 	// Allocate one page for descriptors
 	pp = page_alloc(ALLOC_ZERO);
 	// Initialize all descriptors
@@ -68,8 +71,12 @@ e1000_rx_init()
 
 	// Set hardward registers
 	// Look kern/e1000.h to find useful definations
-	base->RAL = QEMU_MAC_LOW;
-	base->RAH = QEMU_MAC_HIGH;
+	e1000_getmac(mac);
+	mac_low = mac[0] | mac[1] << 8 | mac[2] << 16 | mac[3] << 24;
+	mac_high = mac[4] | mac[5] << 8;
+
+	base->RAL = mac_low;
+	base->RAH = mac_high;
 	base->RDBAL = page2pa(pp);
 	base->RDBAH = 0;
 	base->RDLEN = N_RXDESC * sizeof(struct rx_desc);
@@ -138,4 +145,25 @@ e1000_rx(void *buf, uint32_t len)
 	base->RDT = to_read;
 
 	return MIN(rx_descs[to_read].length, len);
+}
+
+int
+e1000_getmac(void *mac_store)
+{
+	int i;
+	uint8_t mac[6];
+	uint16_t data;
+
+	for (i = 0; i < 3; i++) {
+		base->EERD = 0;
+		base->EERD |= E1000_EERD_SHIFT_ADDR(i);
+		base->EERD |= E1000_EERD_START;
+		while(!(base->EERD & E1000_EERD_DONE));
+		data = E1000_EERD_GET_DATA(base->EERD);
+		mac[2 * i] = data & 0xff;
+		mac[2 * i + 1] = (data >> 8) & 0xff;
+	}
+	memmove(mac_store, mac, 6);
+
+	return 0;
 }
