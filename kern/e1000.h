@@ -10,7 +10,10 @@ struct E1000 {
 	volatile uint32_t CTRL;             /* 0x00000  Device Control - RW */
 	volatile uint32_t CTRL_DUP;         /* 0x00004  Device Control Duplicate (Shadow) - RW */
 	volatile const uint32_t STATUS;     /* 0x00008  Device Status - RO */
-	uint32_t reserved[49];
+	uint32_t reserved12;
+	volatile uint32_t EECD;
+	volatile uint32_t EERD;
+	uint32_t reserved[46];
 	volatile uint32_t IMS;              /* 0x000D0  Interrupt Mask Set - RW */
 	uint32_t reserved2;
 	volatile uint32_t IMC;              /* 0x000D8  Interrupt Mask Clear - WO */
@@ -50,6 +53,10 @@ struct E1000 {
 #define E1000_RCTL_BSIZE_2048        (0U << 16)
 #define E1000_RCTL_SECRC             (1U << 26)
 
+#define E1000_EERD_START 1U
+#define E1000_EERD_DONE (1U << 4)
+#define E1000_EERD_SHIFT_ADDR(a) (((a) & 0xff) << 8)
+#define E1000_EERD_GET_DATA(r) (((r) >> 16) & 0xffff)
 #define QEMU_MAC_LOW 0x12005452
 #define QEMU_MAC_HIGH 0x5634
 
@@ -82,5 +89,6 @@ int pci_e1000_attach(struct pci_func *pcif);
 int e1000_tx_init();
 int e1000_tx(const void *buf, uint32_t len);
 int e1000_rx(void *buf, uint32_t len);
+int e1000_getmac(void *mac_store);
 
 #endif  // SOL >= 6

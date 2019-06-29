@@ -19,8 +19,34 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// The last clause tells the assembler that this can
 	// potentially change the condition codes and arbitrary
 	// memory locations.
-
-	asm volatile("int %1\n"
+	// if (!a5) {
+	// 	asm volatile("pushl %%ecx\n\t"
+	// 	"pushl %%edx\n\t"
+	// 	"pushl %%ebx\n\t"
+	// 	"pushl %%esp\n\t"
+	// 	"pushl %%ebp\n\t"
+	// 	"pushl %%esi\n\t"
+	// 	"pushl %%edi\n\t"
+	// 	"movl %%esp, %%ebp\n\t"
+	// 	"leal after_sysenter%=, %%esi\n\t"
+	// 	"sysenter\n\t"
+	// 	"after_sysenter%=:\n\t"
+	// 	"popl %%edi\n\t"
+	// 	"popl %%esi\n\t"
+	// 	"popl %%ebp\n\t"
+	// 	"popl %%esp\n\t"
+	// 	"popl %%ebx\n\t"
+	// 	"popl %%edx\n\t"
+	// 	"popl %%ecx\n\t"
+	// 	: "=a" (ret)
+	// 	: "a" (num),
+	// 	"d" (a1),
+	// 	"c" (a2),
+	// 	"b" (a3),
+	// 	"D" (a4)
+	// 	: "cc", "memory");
+	// } else {
+		asm volatile("int %1\n"
 		     : "=a" (ret)
 		     : "i" (T_SYSCALL),
 		       "a" (num),
@@ -30,7 +56,9 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		       "D" (a4),
 		       "S" (a5)
 		     : "cc", "memory");
-
+	// }
+	
+	
 	if(check && ret > 0)
 		panic("syscall %d returned %d (> 0)", num, ret);
 
@@ -129,6 +157,12 @@ sys_sbrk(uint32_t inc)
 	return syscall(SYS_sbrk, 0, (uint32_t)inc, (uint32_t)0, 0, 0, 0);
 }
 
+int
+sys_env_switch(envid_t envid)
+{
+	return syscall(SYS_env_switch, 0, envid, 0, 0, 0, 0);
+}
+
 unsigned int
 sys_time_msec(void)
 {
@@ -145,4 +179,10 @@ int
 sys_net_recv(void *buf, uint32_t len)
 {
 	return (unsigned int) syscall(SYS_net_recv, 0, (uint32_t) buf, len, 0, 0, 0);
+}
+
+int
+sys_get_mac(void *mac_store)
+{
+	return syscall(SYS_get_mac, 0, (uint32_t)mac_store, 0, 0, 0, 0);
 }

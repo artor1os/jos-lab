@@ -1,0 +1,7 @@
+1. 目的是为了将用户有权限触发的系统调用和其他用户不可交互的异常处理函数区分开来，
+如果处理函数都指向同一个函数就不能提供保护的同时实现系统调用。
+2. page fault handler的DPL是0，用户模式执行int $14会因为权限不够而触发general protection fault，即trap 13，
+在trap_init()里把page fault的idt项的DPL设为3，那么用户就可以执行int $14，不过这样会让用户可以越权执行内存管理。
+3. int3是在用户模式调用的，如果T_BRKPT的idt项的DPL为3那么就可以正常触发break point exception，如果DPL为0就会触发
+general protection fault。应把DPL设为3。
+4. 关键在于是否进行保护，int3的语义就是不进行保护的，所以可以把DPL设为3，而page fault不是。
